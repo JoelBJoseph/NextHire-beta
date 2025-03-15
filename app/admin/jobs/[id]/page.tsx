@@ -14,23 +14,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
+import { LoadingSpinner } from "@/components/loading-spinner"
+import { getJobOfferById, deleteJobOffer } from "@/lib/api"
 
-// Mock job data
-const mockJob = {
-  id: "1",
-  title: "Software Engineer",
-  description:
-    "We are looking for a skilled software engineer to join our team. The ideal candidate will have experience with React, Node.js, and TypeScript.\n\nResponsibilities:\n- Develop and maintain web applications\n- Collaborate with cross-functional teams\n- Write clean, maintainable code\n- Participate in code reviews\n\nRequirements:\n- 3+ years of experience in software development\n- Strong proficiency in JavaScript/TypeScript\n- Experience with React and Node.js\n- Familiarity with MongoDB or similar NoSQL databases\n- Experience with AWS or other cloud platforms",
-  company: "Tech Corp",
-  location: "San Francisco, CA",
-  salary: "$80,000 - $120,000",
-  type: "Full-time",
-  experience: "3+ years",
-  skills: ["React", "Node.js", "TypeScript", "MongoDB", "AWS"],
-  applications: 12,
-  createdAt: "2023-07-15",
-  status: "active",
+interface Job {
+  id: string
+  title: string
+  description: string
+  company: string
+  location: string
+  salary: string
+  type: string
+  experience: string
+  skills: string[]
+  applications: number
+  createdAt: string
+  status: string
 }
 
 export default function JobDetailsPage() {
@@ -38,25 +38,51 @@ export default function JobDetailsPage() {
   const router = useRouter()
   const jobId = params.id as string
   const [isLoading, setIsLoading] = useState(true)
-  const [job, setJob] = useState(mockJob)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [job, setJob] = useState<Job | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1000)
+    async function fetchJobDetails() {
+      try {
+        setIsLoading(true)
+        const data = await getJobOfferById(jobId)
+        if (!data) {
+          setError("Job not found")
+          return
+        }
+        setJob(data)
+      } catch (err) {
+        setError("Failed to load job details. Please try again later.")
+        console.error("Error fetching job details:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-    return () => clearTimeout(timer)
-  }, [])
+    fetchJobDetails()
+  }, [jobId])
 
-  const handleDeleteJob = () => {
-    // In a real app, this would be an API call
-    toast({
-      title: "Job deleted",
-      description: "The job listing has been successfully deleted.",
-    })
-    router.push("/admin/jobs")
+  const handleDeleteJob = async () => {
+    try {
+      setIsDeleting(true)
+      await deleteJobOffer(jobId)
+      toast({
+        title: "Job deleted",
+        description: "The job listing has been successfully deleted.",
+      })
+      router.push("/admin/jobs")
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to delete the job listing. Please try again.",
+        variant: "destructive",
+      })
+      console.error("Error deleting job:", err)
+      setIsDeleting(false)
+      setIsDeleteDialogOpen(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -76,8 +102,17 @@ export default function JobDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+      <div className="flex h-full items-center justify-center py-12">
+        <LoadingSpinner size="md" className="text-blue-600" />
+      </div>
+    )
+  }
+
+  if (error || !job) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="text-red-500 mb-4">{error || "Job not found"}</div>
+        <Button onClick={() => router.push("/admin/jobs")}>Back to Jobs</Button>
       </div>
     )
   }
@@ -112,11 +147,18 @@ export default function JobDetailsPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={handleDeleteJob}>
-                  Delete
+                <Button variant="destructive" onClick={handleDeleteJob} disabled={isDeleting}>
+                  {isDeleting ? (
+                    <>
+                      <LoadingSpinner size="sm" className="mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete"
+                  )}
                 </Button>
               </div>
             </DialogContent>

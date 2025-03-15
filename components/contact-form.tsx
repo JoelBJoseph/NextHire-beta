@@ -1,14 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
+import { submitContactForm } from "@/lib/api"
+import { LoadingSpinner } from "@/components/loading-spinner"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -25,10 +27,13 @@ const formSchema = z.object({
   }),
 })
 
+type FormValues = z.infer<typeof formSchema>
+
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -38,17 +43,52 @@ export function ContactForm() {
     },
   })
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
+    if (isSubmitting) return
+
     setIsSubmitting(true)
-    // Here you would normally send the form data to your server
-    console.log(values)
-    await new Promise((resolve) => setTimeout(resolve, 2000)) // Simulating API call
-    setIsSubmitting(false)
-    toast({
-      title: "Message Sent!",
-      description: "We'll get back to you as soon as possible.",
-    })
-    form.reset()
+
+    try {
+      await submitContactForm(values)
+
+      toast({
+        title: "Message Sent!",
+        description: "We'll get back to you as soon as possible.",
+      })
+
+      setIsSuccess(true)
+      form.reset()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isSuccess) {
+    return (
+      <div className="text-center py-6">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 mb-4">
+          <svg
+            className="w-8 h-8 text-green-600 dark:text-green-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-semibold mb-2">Message Sent!</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          Thank you for contacting us. We&#39;ll get back to you as soon as possible.
+        </p>
+        <Button onClick={() => setIsSuccess(false)}>Send Another Message</Button>
+      </div>
+    )
   }
 
   return (
@@ -107,7 +147,14 @@ export function ContactForm() {
           )}
         />
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Sending..." : "Send Message"}
+          {isSubmitting ? (
+            <>
+              <LoadingSpinner size="sm" className="mr-2" />
+              Sending...
+            </>
+          ) : (
+            "Send Message"
+          )}
         </Button>
       </form>
     </Form>

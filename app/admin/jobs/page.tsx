@@ -12,33 +12,40 @@ import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { LoadingSpinner } from "@/components/loading-spinner"
+import { getJobOffers, deleteJobOffer } from "@/lib/api"
 
-const initialJobs = []
+interface Job {
+  id: string
+  title: string
+  company: string
+  location: string
+  type: string
+  applications: number
+  createdAt: string
+  status: string
+}
 
 export default function JobsPage() {
   const router = useRouter()
-  const [jobs, setJobs] = useState([])
+  const [jobs, setJobs] = useState<Job[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchJobs() {
       try {
-        const response = await fetch("/api/job-offers")
-        if (!response.ok) {
-          throw new Error("Failed to fetch job offers")
-        }
-        const data = await response.json()
+        setIsLoading(true)
+        const data = await getJobOffers()
         setJobs(data)
-        setIsLoading(false)
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load job listings. Please try again.",
-        })
+      } catch (err) {
+        setError("Failed to load job listings. Please try again later.")
+        console.error("Error fetching job listings:", err)
+      } finally {
         setIsLoading(false)
       }
     }
@@ -61,29 +68,24 @@ export default function JobsPage() {
   const confirmDeleteJob = async () => {
     if (deleteJobId) {
       try {
-        const response = await fetch(`/api/job-offers/${deleteJobId}`, {
-          method: "DELETE",
-        })
-
-        if (!response.ok) {
-          throw new Error("Failed to delete job")
-        }
-
+        setIsDeleting(true)
+        await deleteJobOffer(deleteJobId)
         setJobs(jobs.filter((job) => job.id !== deleteJobId))
-
         toast({
           title: "Job deleted",
           description: "The job listing has been successfully deleted.",
         })
-      } catch (error) {
+      } catch (err) {
         toast({
-          variant: "destructive",
           title: "Error",
-          description: "Failed to delete job listing. Please try again.",
+          description: "Failed to delete the job listing. Please try again.",
+          variant: "destructive",
         })
+        console.error("Error deleting job:", err)
       } finally {
         setIsDeleteDialogOpen(false)
         setDeleteJobId(null)
+        setIsDeleting(false)
       }
     }
   }
@@ -105,8 +107,17 @@ export default function JobsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+      <div className="flex h-full items-center justify-center py-12">
+        <LoadingSpinner size="md" className="text-blue-600" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="text-red-500 mb-4">{error}</div>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     )
   }
@@ -115,7 +126,7 @@ export default function JobsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Job Listings</h1>
-        <p className="text-muted-foreground">Manage your organization's job listings</p>
+        <p className="text-muted-foreground">Manage your organization&#39;s job listings</p>
       </div>
 
       <Card>
@@ -217,11 +228,18 @@ export default function JobsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDeleteJob}>
-              Delete
+            <Button variant="destructive" onClick={confirmDeleteJob} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </div>
         </DialogContent>

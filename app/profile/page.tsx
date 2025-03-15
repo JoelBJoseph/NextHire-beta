@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -26,43 +26,39 @@ import {
   Plus,
   Trash2,
 } from "lucide-react"
-import { useSession } from "next-auth/react"
-import useSWR from "swr"
 
-// Define the fetcher function for SWR
-const fetcher = (url: string) =>
-  fetch(url).then((res) => {
-    if (!res.ok) throw new Error("Failed to fetch data")
-    return res.json()
-  })
+// Mock user data
+const userData = {
+  name: "John Doe",
+  email: "john.doe@example.com",
+  phone: "+1 (555) 123-4567",
+  address: "123 Main St, San Francisco, CA 94105",
+  bio: "Computer Science student with a passion for web development and AI. Looking for opportunities to grow and learn in a collaborative environment.",
+  education: [
+    {
+      id: 1,
+      degree: "Bachelor of Science in Computer Science",
+      institution: "Stanford University",
+      year: "2020-2024",
+    },
+  ],
+  experience: [
+    {
+      id: 1,
+      position: "Web Development Intern",
+      company: "Tech Innovators",
+      duration: "Summer 2023",
+      description: "Worked on frontend development using React and Next.js",
+    },
+  ],
+  skills: ["JavaScript", "React", "Node.js", "Python", "UI/UX Design"],
+}
 
-// Define a more flexible schema that allows for null/undefined values
-const profileSchema = z.object({
-  user: z.object({
-    id: z.string(),
-    name: z.string().optional(),
-    email: z.string().optional(),
-    image: z.string().nullable().optional(),
-    role: z.string().optional(),
-  }),
-  id: z.string().optional(),
-  userId: z.string().optional(),
-  bio: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  address: z.string().nullable().optional(),
-  skills: z.array(z.string()).nullable().optional().default([]),
-  education: z.array(z.any()).nullable().optional().default([]),
-  experience: z.array(z.any()).nullable().optional().default([]),
-})
-
-type Profile = z.infer<typeof profileSchema>
-
-// Form schemas
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
-  phone: z.string().min(5, { message: "Please enter a valid phone number." }).optional(),
-  address: z.string().min(5, { message: "Please enter your complete address." }).optional(),
+  phone: z.string().min(5, { message: "Please enter a valid phone number." }),
+  address: z.string().min(5, { message: "Please enter your complete address." }),
   bio: z.string().max(500, { message: "Bio must not exceed 500 characters." }).optional(),
 })
 
@@ -86,132 +82,22 @@ const experienceFormSchema = z.object({
 type ExperienceFormValues = z.infer<typeof experienceFormSchema>
 
 export default function ProfilePage() {
-  const { data: session } = useSession()
   const [isEditing, setIsEditing] = useState(false)
+  const [user, setUser] = useState(userData)
   const [addingEducation, setAddingEducation] = useState(false)
   const [addingExperience, setAddingExperience] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [userData, setUserData] = useState<{
-    name: string
-    email: string
-    phone: string
-    address: string
-    bio: string
-    education: any[]
-    experience: any[]
-    skills: string[]
-  }>({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    bio: "",
-    education: [],
-    experience: [],
-    skills: [],
-  })
-
-  // Fetch profile data
-  const {
-    data: profileData,
-    error,
-    mutate,
-  } = useSWR(session ? "/api/profile" : null, fetcher, {
-    onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
-      // Only retry up to 3 times
-      if (retryCount >= 3) return
-      // Retry after 5 seconds
-      setTimeout(() => revalidate({ retryCount }), 5000)
-    },
-  })
-
-  // Initialize form with session data if profile not found
-  useEffect(() => {
-    if (error) {
-      console.error("Error fetching profile:", error)
-      if (session?.user) {
-        setUserData({
-          name: session.user.name || "",
-          email: session.user.email || "",
-          phone: "",
-          address: "",
-          bio: "",
-          education: [],
-          experience: [],
-          skills: [],
-        })
-      }
-      return
-    }
-
-    if (profileData) {
-      try {
-        // Try to parse the profile data with our schema
-        const parsedProfile = profileSchema.parse(profileData)
-
-        setUserData({
-          name: parsedProfile.user.name || "",
-          email: parsedProfile.user.email || "",
-          phone: parsedProfile.phone || "",
-          address: parsedProfile.address || "",
-          bio: parsedProfile.bio || "",
-          education: parsedProfile.education || [],
-          experience: parsedProfile.experience || [],
-          skills: parsedProfile.skills || [],
-        })
-      } catch (err) {
-        console.error("Error parsing profile data:", err)
-        // Fallback to session data if parsing fails
-        if (session?.user) {
-          setUserData({
-            name: session.user.name || "",
-            email: session.user.email || "",
-            phone: "",
-            address: "",
-            bio: "",
-            education: [],
-            experience: [],
-            skills: [],
-          })
-        }
-      }
-    } else if (session?.user && !profileData) {
-      // Use session data if profile data is not available
-      setUserData({
-        name: session.user.name || "",
-        email: session.user.email || "",
-        phone: "",
-        address: "",
-        bio: "",
-        education: [],
-        experience: [],
-        skills: [],
-      })
-    }
-  }, [profileData, error, session])
 
   // Profile form
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: userData.name,
-      email: userData.email,
-      phone: userData.phone,
-      address: userData.address,
-      bio: userData.bio,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      address: user.address,
+      bio: user.bio,
     },
   })
-
-  // Update form values when userData changes
-  useEffect(() => {
-    profileForm.reset({
-      name: userData.name,
-      email: userData.email,
-      phone: userData.phone,
-      address: userData.address,
-      bio: userData.bio,
-    })
-  }, [userData, profileForm])
 
   // Education form
   const educationForm = useForm<EducationFormValues>({
@@ -234,209 +120,57 @@ export default function ProfilePage() {
     },
   })
 
-  async function onProfileSubmit(data: ProfileFormValues) {
-    setIsSubmitting(true)
-    try {
-      const response = await fetch("/api/profile", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          bio: data.bio || "",
-          phone: data.phone || "",
-          address: data.address || "",
-          skills: userData.skills,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update profile")
-      }
-
-      // Update the local state
-      setUserData({
-        ...userData,
-        ...data,
-      })
-
-      // Refresh the data
-      mutate()
-
-      setIsEditing(false)
-      toast({
-        title: "Profile updated",
-        description: "Your profile information has been updated successfully.",
-      })
-    } catch (error) {
-      console.error("Error updating profile:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update your profile. Please try again.",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
+  function onProfileSubmit(data: ProfileFormValues) {
+    setUser({ ...user, ...data })
+    setIsEditing(false)
+    toast({
+      title: "Profile updated",
+      description: "Your profile information has been updated successfully.",
+    })
   }
 
-  async function onEducationSubmit(data: EducationFormValues) {
-    try {
-      const response = await fetch("/api/profile/education", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to add education")
-      }
-
-      const result = await response.json()
-
-      // Update local state
-      setUserData({
-        ...userData,
-        education: [...userData.education, result.education],
-      })
-
-      // Refresh the data
-      mutate()
-
-      setAddingEducation(false)
-      educationForm.reset()
-      toast({
-        title: "Education added",
-        description: "Your education information has been added successfully.",
-      })
-    } catch (error) {
-      console.error("Error adding education:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to add education. Please try again.",
-      })
+  function onEducationSubmit(data: EducationFormValues) {
+    const newEducation = {
+      id: user.education.length + 1,
+      ...data,
     }
+    setUser({ ...user, education: [...user.education, newEducation] })
+    setAddingEducation(false)
+    educationForm.reset()
+    toast({
+      title: "Education added",
+      description: "Your education information has been added successfully.",
+    })
   }
 
-  async function onExperienceSubmit(data: ExperienceFormValues) {
-    try {
-      const response = await fetch("/api/profile/experience", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to add experience")
-      }
-
-      const result = await response.json()
-
-      // Update local state
-      setUserData({
-        ...userData,
-        experience: [...userData.experience, result.experience],
-      })
-
-      // Refresh the data
-      mutate()
-
-      setAddingExperience(false)
-      experienceForm.reset()
-      toast({
-        title: "Experience added",
-        description: "Your experience information has been added successfully.",
-      })
-    } catch (error) {
-      console.error("Error adding experience:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to add experience. Please try again.",
-      })
+  function onExperienceSubmit(data: ExperienceFormValues) {
+    const newExperience = {
+      id: user.experience.length + 1,
+      ...data,
     }
+    setUser({ ...user, experience: [...user.experience, newExperience] })
+    setAddingExperience(false)
+    experienceForm.reset()
+    toast({
+      title: "Experience added",
+      description: "Your experience information has been added successfully.",
+    })
   }
 
-  async function deleteEducation(id: string) {
-    try {
-      const response = await fetch(`/api/profile/education/${id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete education")
-      }
-
-      // Update local state
-      setUserData({
-        ...userData,
-        education: userData.education.filter((edu) => edu.id !== id),
-      })
-
-      // Refresh the data
-      mutate()
-
-      toast({
-        title: "Education removed",
-        description: "Your education information has been removed.",
-      })
-    } catch (error) {
-      console.error("Error deleting education:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to remove education. Please try again.",
-      })
-    }
+  function deleteEducation(id: number) {
+    setUser({ ...user, education: user.education.filter((edu) => edu.id !== id) })
+    toast({
+      title: "Education removed",
+      description: "Your education information has been removed.",
+    })
   }
 
-  async function deleteExperience(id: string) {
-    try {
-      const response = await fetch(`/api/profile/experience/${id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to delete experience")
-      }
-
-      // Update local state
-      setUserData({
-        ...userData,
-        experience: userData.experience.filter((exp) => exp.id !== id),
-      })
-
-      // Refresh the data
-      mutate()
-
-      toast({
-        title: "Experience removed",
-        description: "Your experience information has been removed.",
-      })
-    } catch (error) {
-      console.error("Error deleting experience:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to remove experience. Please try again.",
-      })
-    }
-  }
-
-  // Loading state
-  if (!session) {
-    return (
-      <div className="container mx-auto py-10 px-4 max-w-5xl">
-        <div className="flex justify-center items-center h-[60vh]">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-        </div>
-      </div>
-    )
+  function deleteExperience(id: number) {
+    setUser({ ...user, experience: user.experience.filter((exp) => exp.id !== id) })
+    toast({
+      title: "Experience removed",
+      description: "Your experience information has been removed.",
+    })
   }
 
   return (
@@ -444,8 +178,8 @@ export default function ProfilePage() {
       <div className="flex flex-col md:flex-row gap-8 mb-8">
         <div className="flex flex-col items-center">
           <Avatar className="h-32 w-32 mb-4">
-            <AvatarImage src={session.user?.image || "/placeholder.svg?height=128&width=128"} alt={userData.name} />
-            <AvatarFallback className="text-4xl">{userData.name.charAt(0)}</AvatarFallback>
+            <AvatarImage src="/placeholder.svg?height=128&width=128" alt={user.name} />
+            <AvatarFallback className="text-4xl">{user.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <Button variant="outline" size="sm">
             Change Photo
@@ -453,7 +187,7 @@ export default function ProfilePage() {
         </div>
         <div className="flex-1">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold">{userData.name}</h1>
+            <h1 className="text-3xl font-bold">{user.name}</h1>
             {!isEditing ? (
               <Button onClick={() => setIsEditing(true)} variant="outline" size="sm">
                 <Edit className="mr-2 h-4 w-4" />
@@ -468,23 +202,23 @@ export default function ProfilePage() {
 
           {!isEditing ? (
             <div className="space-y-4">
-              <p className="text-muted-foreground">{userData.bio}</p>
+              <p className="text-muted-foreground">{user.bio}</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{userData.email}</span>
+                  <span>{user.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{userData.phone}</span>
+                  <span>{user.phone}</span>
                 </div>
                 <div className="flex items-center gap-2 md:col-span-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{userData.address}</span>
+                  <span>{user.address}</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
-                {userData.skills.map((skill, index) => (
+                {user.skills.map((skill, index) => (
                   <Badge key={index} variant="secondary">
                     {skill}
                   </Badge>
@@ -528,7 +262,7 @@ export default function ProfilePage() {
                       <FormItem>
                         <FormLabel>Phone</FormLabel>
                         <FormControl>
-                          <Input placeholder="Your phone number" {...field} value={field.value || ""} />
+                          <Input placeholder="Your phone number" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -542,7 +276,7 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>Address</FormLabel>
                       <FormControl>
-                        <Input placeholder="Your address" {...field} value={field.value || ""} />
+                        <Input placeholder="Your address" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -570,18 +304,9 @@ export default function ProfilePage() {
                   )}
                 />
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
+                  <Button type="submit">
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
                   </Button>
                 </div>
               </form>
@@ -677,9 +402,9 @@ export default function ProfilePage() {
             </Card>
           )}
 
-          {userData.education && userData.education.length > 0 ? (
+          {user.education.length > 0 ? (
             <div className="space-y-4">
-              {userData.education.map((edu) => (
+              {user.education.map((edu) => (
                 <Card key={edu.id}>
                   <CardContent className="pt-6">
                     <div className="flex justify-between items-start">
@@ -818,9 +543,9 @@ export default function ProfilePage() {
             </Card>
           )}
 
-          {userData.experience && userData.experience.length > 0 ? (
+          {user.experience.length > 0 ? (
             <div className="space-y-4">
-              {userData.experience.map((exp) => (
+              {user.experience.map((exp) => (
                 <Card key={exp.id}>
                   <CardContent className="pt-6">
                     <div className="flex justify-between items-start">

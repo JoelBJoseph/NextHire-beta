@@ -3,47 +3,38 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
+
+const navItems = [
+  { href: "/", label: "Home" },
+  { href: "/offers", label: "Job Offers" },
+  { href: "/contact", label: "Contact" },
+]
 
 interface MainNavProps {
   mobile?: boolean
   closeMenu?: () => void
 }
 
-export function MainNav({ mobile, closeMenu }: MainNavProps) {
+export function MainNav({ mobile = false, closeMenu }: MainNavProps) {
   const pathname = usePathname()
-
-  const routes = [
-    {
-      href: "/",
-      label: "Home",
-      active: pathname === "/",
-    },
-    {
-      href: "/offers",
-      label: "Job Offers",
-      active: pathname === "/offers",
-    },
-    {
-      href: "/contact",
-      label: "Contact",
-      active: pathname === "/contact",
-    },
-  ]
 
   if (mobile) {
     return (
-      <div className="flex flex-col space-y-3">
-        {routes.map((route) => (
+      <div className="space-y-1">
+        {navItems.map((item) => (
           <Link
-            key={route.href}
-            href={route.href}
-            onClick={closeMenu}
+            key={item.href}
+            href={item.href}
             className={cn(
-              "text-sm font-medium transition-colors hover:text-primary",
-              route.active ? "text-black dark:text-white" : "text-muted-foreground",
+              "flex items-center rounded-md py-2 px-3 text-sm font-medium",
+              pathname === item.href
+                ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                : "text-gray-900 hover:bg-gray-100 hover:text-blue-600 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-blue-400",
             )}
+            onClick={closeMenu}
           >
-            {route.label}
+            {item.label}
           </Link>
         ))}
       </div>
@@ -51,17 +42,27 @@ export function MainNav({ mobile, closeMenu }: MainNavProps) {
   }
 
   return (
-    <nav className="flex items-center space-x-6">
-      {routes.map((route) => (
+    <nav className="flex items-center space-x-1">
+      {navItems.map((item) => (
         <Link
-          key={route.href}
-          href={route.href}
+          key={item.href}
+          href={item.href}
           className={cn(
-            "text-sm font-medium transition-colors hover:text-primary",
-            route.active ? "text-black dark:text-white" : "text-muted-foreground",
+            "relative px-3 py-2 rounded-md text-sm font-medium transition-colors",
+            pathname === item.href
+              ? "text-blue-600 dark:text-blue-400"
+              : "text-gray-700 hover:text-blue-600 dark:text-gray-200 dark:hover:text-blue-400",
           )}
+          onClick={closeMenu}
         >
-          {route.label}
+          {pathname === item.href && (
+            <motion.span
+              className="absolute inset-0 bg-blue-50 dark:bg-blue-900/30 rounded-md z-[-1]"
+              layoutId="navbar-active-item"
+              transition={{ type: "spring", duration: 0.6 }}
+            />
+          )}
+          {item.label}
         </Link>
       ))}
     </nav>

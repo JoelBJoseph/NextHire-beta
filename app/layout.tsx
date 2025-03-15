@@ -6,11 +6,14 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Toaster } from "@/components/ui/toaster"
 import type * as React from "react"
-import { initUploadsDirectory } from "@/lib/init-uploads"
 
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
+// Optimize font loading by specifying only the subsets we need
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap", // Use 'swap' to prevent FOUT (Flash of Unstyled Text)
+})
 
 export const metadata: Metadata = {
   title: "NextHire - College Placement System",
@@ -29,13 +32,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-}
-
-// Initialize uploads directory
-try {
-  initUploadsDirectory()
-} catch (error) {
-  console.error("Failed to initialize uploads directory:", error)
 }
 
 export default function RootLayout({

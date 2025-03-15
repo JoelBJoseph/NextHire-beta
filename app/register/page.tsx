@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react" // Add useCallback for optimization
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Icons } from "@/components/icons"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
+import { LoadingSpinner } from "@/components/loading-spinner"
 
 const formSchema = z
   .object({
@@ -105,7 +106,8 @@ export default function RegisterPage() {
     }
   }
 
-  const handleGoogleSignUp = async () => {
+  // Optimize form submission with useCallback
+  const handleGoogleSignUp = useCallback(async () => {
     try {
       setIsGoogleLoading(true)
       await signIn("google", { callbackUrl: "/dashboard" })
@@ -118,13 +120,13 @@ export default function RegisterPage() {
     } finally {
       setIsGoogleLoading(false)
     }
-  }
+  }, [])
 
   return (
     <div className="container flex h-screen w-screen flex-col items-center justify-center">
       <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[400px]">
         <div className="flex flex-col space-y-2 text-center">
-          <Image src="/logo-achu.png" alt="NextHire" width={120} height={40} className="mx-auto h-10 w-auto" /><br/>
+          <Image src="/logo-achu.png" alt="NextHire" width={120} height={40} className="mx-auto h-10 w-auto" />
           <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
           <p className="text-sm text-muted-foreground">Enter your information to create an account</p>
         </div>
@@ -265,7 +267,7 @@ export default function RegisterPage() {
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
-                        <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                        <LoadingSpinner size="sm" className="mr-2" />
                         Creating account...
                       </>
                     ) : (

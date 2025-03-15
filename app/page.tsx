@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, Briefcase, Users, Building, Target, Star } from "lucide-react"
 import { motion } from "framer-motion"
 
+// Optimize animations to reduce layout shifts and improve performance
 const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 10 }, // Reduced y value from 20 to 10 for subtler animation
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6 },
+    transition: { duration: 0.4 }, // Reduced from 0.6 to 0.4 for faster animation
   },
 }
 
@@ -20,7 +21,7 @@ const staggerContainer = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.2,
+      staggerChildren: 0.1, // Reduced from 0.2 to 0.1 for faster staggering
     },
   },
 }
@@ -185,8 +186,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 dark:text-gray-300">
-                "NextHire helped me land my dream job at Google. The platform made it easy to find and apply for
-                positions that matched my skills and interests."
+                &#34;NextHire helped me land my dream job at Google. The platform made it easy to find and apply for
+                positions that matched my skills and interests.&#34;
               </p>
             </motion.div>
 
@@ -203,8 +204,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 dark:text-gray-300">
-                "The career guidance and resume tips from NextHire were invaluable. I received multiple job offers and
-                found the perfect position at Amazon."
+                &#34;The career guidance and resume tips from NextHire were invaluable. I received multiple job offers and
+                found the perfect position at Amazon.&#34;
               </p>
             </motion.div>
 
@@ -221,8 +222,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 dark:text-gray-300">
-                "As a design student, I was worried about finding the right job. NextHire connected me with companies
-                looking for my exact skills, and now I'm thriving at Adobe."
+                &#34;As a design student, I was worried about finding the right job. NextHire connected me with companies
+                looking for my exact skills, and now I&#39;m thriving at Adobe.&#34;
               </p>
             </motion.div>
           </motion.div>

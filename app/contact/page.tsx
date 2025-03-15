@@ -10,7 +10,7 @@ export default function ContactPage() {
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">Get in Touch</h1>
             <p className="text-blue-100">
-              Have questions? We'd love to hear from you. Students and organizations can send us a message and we'll
+              Have questions? We&#39;d love to hear from you. Students and organizations can send us a message and we'll
               respond as soon as possible.
             </p>
           </div>

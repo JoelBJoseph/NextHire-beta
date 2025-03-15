@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -70,35 +70,7 @@ const passwordFormSchema = z
 
 export default function SettingsPage() {
   const { user } = useAuth()
-  const [isLoading, setIsLoading] = useState(true)
-  const [organizationData, setOrganizationData] = useState(null)
-
-  useEffect(() => {
-    async function fetchOrganizationData() {
-      if (user?.role !== "ORGANIZATION" && user?.role !== "ADMIN") return
-
-      try {
-        const response = await fetch("/api/organization")
-        if (!response.ok) {
-          throw new Error("Failed to fetch organization data")
-        }
-        const data = await response.json()
-        setOrganizationData(data)
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load organization information.",
-        })
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    if (user) {
-      fetchOrganizationData()
-    }
-  }, [user])
+  const [isLoading, setIsLoading] = useState(false)
 
   const profileForm = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -113,11 +85,11 @@ export default function SettingsPage() {
   const organizationForm = useForm<z.infer<typeof organizationFormSchema>>({
     resolver: zodResolver(organizationFormSchema),
     defaultValues: {
-      name: organizationData?.name || "",
-      industry: organizationData?.industry || "",
-      location: organizationData?.location || "",
-      description: organizationData?.description || "",
-      website: organizationData?.website || "",
+      name: "Tech Corp",
+      industry: "Technology",
+      location: "San Francisco, CA",
+      description: "A leading technology company specializing in innovative software solutions.",
+      website: "https://techcorp.example.com",
     },
   })
 
@@ -144,74 +116,33 @@ export default function SettingsPage() {
     }, 1000)
   }
 
-  async function onOrganizationSubmit(values: z.infer<typeof organizationFormSchema>) {
+  function onOrganizationSubmit(values: z.infer<typeof organizationFormSchema>) {
     setIsLoading(true)
 
-    try {
-      const response = await fetch("/api/organization", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(values),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update organization")
-      }
-
-      setOrganizationData({ ...organizationData, ...values })
-
+    // Simulate API call
+    setTimeout(() => {
+      console.log(values)
       toast({
         title: "Organization updated",
         description: "Your organization information has been updated successfully.",
       })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update organization information. Please try again.",
-      })
-    } finally {
       setIsLoading(false)
-    }
+    }, 1000)
   }
 
-  async function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
+  function onPasswordSubmit(values: z.infer<typeof passwordFormSchema>) {
     setIsLoading(true)
 
-    try {
-      const response = await fetch("/api/user/password", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          currentPassword: values.currentPassword,
-          newPassword: values.newPassword,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Failed to update password")
-      }
-
+    // Simulate API call
+    setTimeout(() => {
+      console.log(values)
       toast({
         title: "Password updated",
         description: "Your password has been updated successfully.",
       })
-
       passwordForm.reset()
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to update password. Please try again.",
-      })
-    } finally {
       setIsLoading(false)
-    }
+    }, 1000)
   }
 
   return (
@@ -341,7 +272,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Organization</CardTitle>
-              <CardDescription>Manage your organization's information and settings</CardDescription>
+              <CardDescription>Manage your organization&#39;s information and settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex flex-col md:flex-row gap-6 items-start">

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { FileText, Download, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
@@ -15,25 +15,25 @@ interface ResumeViewerProps {
 
 export function ResumeViewer({ resumeUrl, studentName, trigger }: ResumeViewerProps) {
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [totalPages] = useState(1) // Set a fixed value to avoid unnecessary state updates
   const [zoom, setZoom] = useState(1)
 
-  // This would normally load the actual PDF, but for demo purposes we're using a placeholder
-  const handleZoomIn = () => {
+  // Optimize zoom handlers with useCallback to prevent unnecessary re-renders
+  const handleZoomIn = useCallback(() => {
     setZoom((prev) => Math.min(prev + 0.25, 2))
-  }
+  }, [])
 
-  const handleZoomOut = () => {
+  const handleZoomOut = useCallback(() => {
     setZoom((prev) => Math.max(prev - 0.25, 0.5))
-  }
+  }, [])
 
-  const handlePrevPage = () => {
+  const handlePrevPage = useCallback(() => {
     setCurrentPage((prev) => Math.max(prev - 1, 1))
-  }
+  }, [])
 
-  const handleNextPage = () => {
+  const handleNextPage = useCallback(() => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-  }
+  }, [totalPages])
 
   return (
     <Dialog>

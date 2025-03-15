@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { JobForm } from "@/components/job-form"
 import { useParams } from "next/navigation"
+import { LoadingSpinner } from "@/components/loading-spinner"
 
 // Mock job data
 const mockJob = {
@@ -37,8 +38,8 @@ export default function EditJobPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+      <div className="flex h-full items-center justify-center py-12">
+        <LoadingSpinner size="md" className="text-blue-600" />
       </div>
     )
   }

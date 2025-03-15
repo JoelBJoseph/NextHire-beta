@@ -1,4 +1,6 @@
 "use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -6,65 +8,90 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Eye, Briefcase, FileText, Bell, Calendar, CheckCircle, Clock, AlertCircle } from "lucide-react"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
-import { toast } from "@/hooks/use-toast"
+import { LoadingSpinner } from "@/components/loading-spinner"
+import { getApplications } from "@/lib/api"
+import { useRouter } from "next/navigation"
 
-// Add this near the top of the component
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+interface Application {
+  id: number | string
+  jobTitle: string
+  company: string
+  appliedDate: string
+  status: string
+}
+
+interface Notification {
+  id: number | string
+  message: string
+  time: string
+}
+
+interface Event {
+  id: number | string
+  title: string
+  date: string
+  time: string
+}
 
 export default function StudentDashboard() {
+  const router = useRouter()
+  const [applications, setApplications] = useState<Application[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [applications, setApplications] = useState(null)
-  const [events, setEvents] = useState(null)
-  const [notifications, setNotifications] = useState(null)
-  const [applicationsError, setApplicationsError] = useState(null)
-  const [eventsError, setEventsError] = useState(null)
-  const [notificationsError, setNotificationsError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchDashboardData() {
       try {
-        const applicationsData = await fetcher("/api/applications")
-        setApplications(applicationsData)
-        const eventsData = await fetcher("/api/events")
-        setEvents(eventsData)
-        const notificationsData = await fetcher("/api/notifications")
-        setNotifications(notificationsData)
-      } catch (error: any) {
-        console.error("Error fetching data:", error)
-        if (error.message.includes("applications")) setApplicationsError(error)
-        if (error.message.includes("events")) setEventsError(error)
-        if (error.message.includes("notifications")) setNotificationsError(error)
-        toast({
-          variant: "destructive",
-          title: "Error loading data",
-          description: "Failed to load your dashboard information.",
-        })
+        setIsLoading(true)
+
+        // Fetch applications
+        const applicationsData = await getApplications()
+
+        // Format applications for display
+        const formattedApplications = applicationsData.map((app: any) => ({
+          id: app.id,
+          jobTitle: app.jobOffer.title,
+          company: app.jobOffer.organization.name,
+          appliedDate: new Date(app.appliedDate).toLocaleDateString(),
+          status: app.status.toLowerCase(),
+        }))
+
+        setApplications(formattedApplications)
+
+        // In a real app, we would fetch notifications and events from the API
+        // For now, we'll use empty arrays
+        setNotifications([])
+        setUpcomingEvents([])
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err)
+        setError("Failed to load your applications. Please try again.")
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchData()
+    fetchDashboardData()
   }, [])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "PENDING":
+      case "pending":
         return (
           <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 flex items-center gap-1">
             <Clock className="h-3 w-3" />
             Pending
           </Badge>
         )
-      case "SELECTED":
+      case "selected":
         return (
           <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 flex items-center gap-1">
             <CheckCircle className="h-3 w-3" />
             Selected
           </Badge>
         )
-      case "REJECTED":
+      case "rejected":
         return (
           <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200 flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
@@ -72,19 +99,28 @@ export default function StudentDashboard() {
           </Badge>
         )
       default:
-        return (
-          <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200 flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {status}
-          </Badge>
-        )
+        return null
     }
+  }
+
+  const handleViewApplication = (id: number | string) => {
+    // In a real app, this would navigate to the application details page
+    router.push(`/applications/${id}`)
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+      <div className="flex h-full items-center justify-center py-12">
+        <LoadingSpinner size="lg" className="text-blue-600" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="text-red-500 mb-4">{error}</div>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     )
   }
@@ -117,7 +153,7 @@ export default function StudentDashboard() {
                   <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{applications ? applications.length : 0}</div>
+                  <div className="text-3xl font-bold">{applications.length}</div>
                   <p className="text-xs text-muted-foreground mt-1">Applications submitted</p>
                 </CardContent>
               </Card>
@@ -134,7 +170,7 @@ export default function StudentDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold">
-                    {applications ? applications.filter((app) => app.status === "SELECTED").length : 0}
+                    {applications.filter((app) => app.status === "selected").length}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Applications approved</p>
                 </CardContent>
@@ -152,7 +188,7 @@ export default function StudentDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold">
-                    {applications ? applications.filter((app) => app.status === "PENDING").length : 0}
+                    {applications.filter((app) => app.status === "pending").length}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Awaiting response</p>
                 </CardContent>
@@ -190,10 +226,10 @@ export default function StudentDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {!applications || applications.length === 0 ? (
+                        {applications.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                              You haven't applied to any jobs yet
+                              You haven&#39;t applied to any jobs yet
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -204,7 +240,12 @@ export default function StudentDashboard() {
                               <TableCell>{application.appliedDate}</TableCell>
                               <TableCell>{getStatusBadge(application.status)}</TableCell>
                               <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleViewApplication(application.id)}
+                                >
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               </TableCell>
@@ -227,7 +268,7 @@ export default function StudentDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {!notifications || notifications.length === 0 ? (
+                  {notifications.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">No new notifications</div>
                   ) : (
                     <div className="space-y-4">
@@ -250,11 +291,11 @@ export default function StudentDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {!events || events.length === 0 ? (
+                  {upcomingEvents.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">No upcoming events</div>
                   ) : (
                     <div className="space-y-4">
-                      {events.map((event) => (
+                      {upcomingEvents.map((event) => (
                         <div key={event.id} className="border-b pb-4 last:border-0 last:pb-0">
                           <p className="font-medium">{event.title}</p>
                           <div className="flex items-center text-sm text-muted-foreground mt-1">

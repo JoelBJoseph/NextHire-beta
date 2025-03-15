@@ -6,103 +6,21 @@ import { motion } from "framer-motion"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { JobApplicationForm } from "@/components/job-application-form"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Clock, Briefcase, ChevronDown, ChevronUp } from "lucide-react"
-import { z } from "zod"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/hooks/use-toast"
 
 interface JobOffer {
-  id: string
+  id: number | string
   title: string
-  description: string
+  company: string
   location: string
-  salary: string | null
+  salary: string
+  description: string
+  logo: string
   type: string
-  experience: string | null
+  experience: string
   skills: string[]
-  organization: {
-    name: string
-    logo: string | null
-  }
-}
-
-const formSchema = z.object({
-  resume: z.string().url({ message: "Please enter a valid URL." }),
-})
-
-function JobApplicationForm({ jobId }: { jobId: string }) {
-  const { toast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      resume: "",
-    },
-  })
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true)
-    try {
-      const response = await fetch("/api/applications", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jobOfferId: jobId,
-          resumeUrl: values.resume,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Failed to submit application")
-      }
-
-      toast({
-        title: "Application submitted",
-        description: "Your application has been submitted successfully.",
-      })
-
-      // Close the dialog or show success state
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to submit your application. Please try again.",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="resume"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Resume URL</FormLabel>
-              <FormControl>
-                <Input placeholder="https://example.com/resume.pdf" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting..." : "Submit Application"}
-        </Button>
-      </form>
-    </Form>
-  )
 }
 
 export function JobOfferCard({ offer }: { offer: JobOffer }) {
@@ -120,8 +38,8 @@ export function JobOfferCard({ offer }: { offer: JobOffer }) {
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-700">
               <Image
-                src={offer.organization.logo || "/placeholder.svg?height=48&width=48"}
-                alt={offer.organization.name}
+                src={offer.logo || "/logo.png"}
+                alt={offer.company}
                 width={48}
                 height={48}
                 className="object-cover"
@@ -129,7 +47,7 @@ export function JobOfferCard({ offer }: { offer: JobOffer }) {
             </div>
             <div>
               <CardTitle className="text-xl mb-1 text-blue-600 dark:text-blue-400">{offer.title}</CardTitle>
-              <CardDescription className="font-medium">{offer.organization.name}</CardDescription>
+              <CardDescription className="font-medium">{offer.company}</CardDescription>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mb-4">

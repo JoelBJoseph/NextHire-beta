@@ -10,8 +10,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    // First, check if the profile exists
-    let profile = await prisma.profile.findUnique({
+    const profile = await prisma.profile.findUnique({
       where: {
         userId: session.user.id,
       },
@@ -30,30 +29,8 @@ export async function GET(req: Request) {
       },
     })
 
-    // If profile doesn't exist, create a new one
     if (!profile) {
-      profile = await prisma.profile.create({
-        data: {
-          userId: session.user.id,
-          bio: null,
-          phone: null,
-          address: null,
-          skills: [],
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              image: true,
-              role: true,
-            },
-          },
-          education: true,
-          experience: true,
-        },
-      })
+      return NextResponse.json({ message: "Profile not found" }, { status: 404 })
     }
 
     return NextResponse.json(profile)
@@ -72,42 +49,20 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json()
-    const { bio, phone, address, skills } = body
+    const { bio, phone, address, skills, passingYear } = body
 
-    // Check if profile exists
-    const existingProfile = await prisma.profile.findUnique({
+    const updatedProfile = await prisma.profile.update({
       where: {
         userId: session.user.id,
       },
+      data: {
+        bio,
+        phone,
+        address,
+        skills,
+        passingYear,
+      },
     })
-
-    let updatedProfile
-
-    if (existingProfile) {
-      // Update existing profile
-      updatedProfile = await prisma.profile.update({
-        where: {
-          userId: session.user.id,
-        },
-        data: {
-          bio,
-          phone,
-          address,
-          skills,
-        },
-      })
-    } else {
-      // Create new profile
-      updatedProfile = await prisma.profile.create({
-        data: {
-          userId: session.user.id,
-          bio,
-          phone,
-          address,
-          skills: skills || [],
-        },
-      })
-    }
 
     return NextResponse.json({
       message: "Profile updated successfully",

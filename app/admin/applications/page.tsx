@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,79 +17,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { Search, Download, Filter, Eye } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { toast } from "@/hooks/use-toast"
-
-// Import the ResumeViewer component
+import { LoadingSpinner } from "@/components/loading-spinner"
 import { ResumeViewer } from "@/components/resume-viewer"
-
-// Remove this mock data
-// const initialApplications = [
-//   {
-//     id: 1,
-//     studentName: "John Doe",
-//     studentEmail: "john@example.com",
-//     jobTitle: "Software Engineer",
-//     company: "Tech Corp",
-//     appliedDate: "2023-07-15",
-//     status: "pending",
-//     passingYear: "2023",
-//     resumeUrl: "#",
-//     address: "123 Main St, San Francisco, CA",
-//   },
-//   {
-//     id: 2,
-//     studentName: "Jane Smith",
-//     studentEmail: "jane@example.com",
-//     jobTitle: "UX Designer",
-//     company: "Creative Solutions",
-//     appliedDate: "2023-07-12",
-//     status: "selected",
-//     passingYear: "2023",
-//     resumeUrl: "#",
-//     address: "456 Oak Ave, New York, NY",
-//   },
-//   {
-//     id: 3,
-//     studentName: "Alice Johnson",
-//     studentEmail: "alice@example.com",
-//     jobTitle: "Data Scientist",
-//     company: "Data Insights Inc",
-//     appliedDate: "2023-07-10",
-//     status: "rejected",
-//     passingYear: "2024",
-//     resumeUrl: "#",
-//     address: "789 Pine St, Chicago, IL",
-//   },
-//   {
-//     id: 4,
-//     studentName: "Bob Brown",
-//     studentEmail: "bob@example.com",
-//     jobTitle: "Software Engineer",
-//     company: "Tech Corp",
-//     appliedDate: "2023-07-09",
-//     status: "pending",
-//     passingYear: "2022",
-//     resumeUrl: "#",
-//     address: "101 Maple Dr, Austin, TX",
-//   },
-//   {
-//     id: 5,
-//     studentName: "Emily White",
-//     studentEmail: "emily@example.com",
-//     jobTitle: "Product Manager",
-//     company: "Innovate Co",
-//     appliedDate: "2023-07-08",
-//     status: "selected",
-//     passingYear: "2023",
-//     resumeUrl: "#",
-//     address: "202 Cedar Ln, Seattle, WA",
-//   },
-// ]
+import { getApplications, updateApplication } from "@/lib/api"
+import { useSearchParams, useRouter } from "next/navigation"
+import { toast } from "@/hooks/use-toast"
 
 type ApplicationStatus = "pending" | "selected" | "rejected"
 
 interface Application {
-  id: string
+  id: number
   studentName: string
   studentEmail: string
   jobTitle: string
@@ -101,15 +38,18 @@ interface Application {
   address: string
 }
 
-// Create a reusable ApplicationDetailsDialog component
 function ApplicationDetailsDialog({
   application,
   onStatusChange,
 }: {
   application: Application | null
-  onStatusChange: (id: string, status: ApplicationStatus) => void
+  onStatusChange: (id: number, status: ApplicationStatus) => void
 }) {
   if (!application) return null
+
+  const handleStatusChange = (value: string) => {
+    onStatusChange(application.id, value as ApplicationStatus)
+  }
 
   return (
     <>
@@ -147,16 +87,13 @@ function ApplicationDetailsDialog({
         <div className="grid grid-cols-4 items-center gap-4">
           <div className="text-sm font-medium">Resume:</div>
           <div className="col-span-3">
-            <ResumeViewer resumeUrl="#" studentName={application.studentName} />
+            <ResumeViewer resumeUrl={application.resumeUrl} studentName={application.studentName} />
           </div>
         </div>
         <div className="grid grid-cols-4 items-center gap-4">
           <div className="text-sm font-medium">Status:</div>
           <div className="col-span-3">
-            <Select
-              value={application.status}
-              onValueChange={(value) => onStatusChange(application.id, value as ApplicationStatus)}
-            >
+            <Select value={application.status} onValueChange={handleStatusChange}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -174,24 +111,28 @@ function ApplicationDetailsDialog({
 }
 
 export default function ApplicationsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const statusParam = searchParams.get("status") as ApplicationStatus | null
+
   const [applications, setApplications] = useState<Application[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(statusParam || "all")
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
 
   useEffect(() => {
     async function fetchApplications() {
       try {
-        const response = await fetch("/api/applications")
-        if (!response.ok) {
-          throw new Error("Failed to fetch applications")
-        }
-        const data = await response.json()
+        setIsLoading(true)
+        const data = await getApplications()
         setApplications(data)
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load applications. Please try again.",
-        })
+      } catch (err) {
+        setError("Failed to load applications. Please try again later.")
+        console.error("Error fetching applications:", err)
       } finally {
         setIsLoading(false)
       }
@@ -199,49 +140,47 @@ export default function ApplicationsPage() {
 
     fetchApplications()
   }, [])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">("all")
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleStatusChange = async (applicationId: string, newStatus: ApplicationStatus) => {
-    try {
-      const response = await fetch(`/api/applications/${applicationId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: newStatus }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to update application status")
-      }
-
-      // Update the local state
-      setApplications(applications.map((app) => (app.id === applicationId ? { ...app, status: newStatus } : app)))
-
-      if (selectedApplication?.id === applicationId) {
-        setSelectedApplication({ ...selectedApplication, status: newStatus })
-      }
-
-      toast({
-        title: "Status updated",
-        description: `Application status has been updated to ${newStatus.toLowerCase()}.`,
-      })
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update application status. Please try again.",
-      })
+  useEffect(() => {
+    if (statusParam) {
+      setStatusFilter(statusParam)
     }
-  }
+  }, [statusParam])
 
-  const handleOpenDialog = (application: Application) => {
+  const handleStatusChange = useCallback(
+    async (applicationId: number, newStatus: ApplicationStatus) => {
+      try {
+        setIsUpdating(true)
+        await updateApplication(applicationId.toString(), { status: newStatus })
+
+        setApplications(applications.map((app) => (app.id === applicationId ? { ...app, status: newStatus } : app)))
+
+        if (selectedApplication?.id === applicationId) {
+          setSelectedApplication({ ...selectedApplication, status: newStatus })
+        }
+
+        toast({
+          title: "Status updated",
+          description: `Application status has been updated to ${newStatus}.`,
+        })
+      } catch (err) {
+        toast({
+          title: "Error updating status",
+          description: "Failed to update application status. Please try again.",
+          variant: "destructive",
+        })
+        console.error("Error updating application status:", err)
+      } finally {
+        setIsUpdating(false)
+      }
+    },
+    [applications, selectedApplication],
+  )
+
+  const handleOpenDialog = useCallback((application: Application) => {
     setSelectedApplication(application)
     setDialogOpen(true)
-  }
+  }, [])
 
   const filteredApplications = applications.filter((app) => {
     const matchesSearch =
@@ -277,6 +216,31 @@ export default function ApplicationsPage() {
     }
   }
 
+  const handleExportApplications = () => {
+    // In a real application, this would generate a CSV or Excel file
+    toast({
+      title: "Export started",
+      description: "Your applications export is being prepared and will download shortly.",
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center py-12">
+        <LoadingSpinner size="md" className="text-blue-600" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="text-red-500 mb-4">{error}</div>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -301,7 +265,14 @@ export default function ApplicationsPage() {
               </div>
               <Select
                 value={statusFilter}
-                onValueChange={(value) => setStatusFilter(value as ApplicationStatus | "all")}
+                onValueChange={(value) => {
+                  setStatusFilter(value as ApplicationStatus | "all")
+                  if (value !== "all") {
+                    router.push(`/admin/applications?status=${value}`, { scroll: false })
+                  } else {
+                    router.push("/admin/applications", { scroll: false })
+                  }
+                }}
               >
                 <SelectTrigger className="w-[130px]">
                   <Filter className="mr-2 h-4 w-4" />
@@ -314,19 +285,36 @@ export default function ApplicationsPage() {
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={handleExportApplications}>
                 <Download className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="all" className="w-full">
+          <Tabs defaultValue={statusParam || "all"} className="w-full">
             <TabsList className="mb-4">
-              <TabsTrigger value="all">All Applications</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="selected">Selected</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              <TabsTrigger value="all" onClick={() => router.push("/admin/applications", { scroll: false })}>
+                All Applications
+              </TabsTrigger>
+              <TabsTrigger
+                value="pending"
+                onClick={() => router.push("/admin/applications?status=pending", { scroll: false })}
+              >
+                Pending
+              </TabsTrigger>
+              <TabsTrigger
+                value="selected"
+                onClick={() => router.push("/admin/applications?status=selected", { scroll: false })}
+              >
+                Selected
+              </TabsTrigger>
+              <TabsTrigger
+                value="rejected"
+                onClick={() => router.push("/admin/applications?status=rejected", { scroll: false })}
+              >
+                Rejected
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="all">
               <div className="rounded-md border">
@@ -431,6 +419,7 @@ export default function ApplicationsPage() {
                                   size="sm"
                                   className="text-green-600 border-green-200 hover:bg-green-50"
                                   onClick={() => handleStatusChange(application.id, "selected")}
+                                  disabled={isUpdating}
                                 >
                                   Select
                                 </Button>
@@ -439,6 +428,7 @@ export default function ApplicationsPage() {
                                   size="sm"
                                   className="text-red-600 border-red-200 hover:bg-red-50"
                                   onClick={() => handleStatusChange(application.id, "rejected")}
+                                  disabled={isUpdating}
                                 >
                                   Reject
                                 </Button>

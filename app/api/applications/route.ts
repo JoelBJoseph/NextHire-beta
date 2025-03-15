@@ -50,7 +50,13 @@ export async function GET(req: Request) {
       const applications = await prisma.application.findMany({
         where: {
           jobOffer: {
-            organizationId: user.organizationId,
+            organization: {
+              users: {
+                some: {
+                  id: user.id,
+                },
+              },
+            },
           },
         },
         include: {
@@ -167,10 +173,12 @@ export async function POST(req: Request) {
     }
 
     // Check if user has already applied for this job
-    const existingApplication = await prisma.application.findFirst({
+    const existingApplication = await prisma.application.findUnique({
       where: {
-        userId: user.id,
-        jobOfferId: jobOfferId,
+        userId_jobOfferId: {
+          userId: user.id,
+          jobOfferId,
+        },
       },
     })
 
@@ -181,39 +189,31 @@ export async function POST(req: Request) {
     // Create application
     const application = await prisma.application.create({
       data: {
-        userId: user.id,
-        jobOfferId: jobOfferId,
-        resumeUrl: resumeUrl || null,
-        coverLetter: coverLetter || null,
-        status: "PENDING",
+        user: {
+          connect: {
+            id: user.id,
+          },
+        },
+        jobOffer: {
+          connect: {
+            id: jobOfferId,
+          },
+        },
+        resumeUrl,
+        coverLetter,
       },
     })
 
     // Update user profile with resume URL if provided
     if (resumeUrl) {
-      const profile = await prisma.profile.findUnique({
+      await prisma.profile.update({
         where: {
           userId: user.id,
         },
+        data: {
+          resumeUrl,
+        },
       })
-
-      if (profile) {
-        await prisma.profile.update({
-          where: {
-            userId: user.id,
-          },
-          data: {
-            resumeUrl,
-          },
-        })
-      } else {
-        await prisma.profile.create({
-          data: {
-            userId: user.id,
-            resumeUrl,
-          },
-        })
-      }
     }
 
     return NextResponse.json(
