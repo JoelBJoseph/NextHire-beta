@@ -1,3 +1,8 @@
+/**
+ * API utility functions for data fetching
+ */
+
+// Base URL for API calls
 const API_BASE_URL = typeof window !== "undefined" ? `${window.location.origin}/api` : "http://localhost:3000/api"
 
 // Job Offers

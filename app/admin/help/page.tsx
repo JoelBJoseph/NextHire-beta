@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "@/components/ui/use-toast"
 import { Search } from "lucide-react"
 import { submitSupportRequest } from "@/lib/api"
 
@@ -143,7 +143,7 @@ export default function HelpPage() {
             <CardHeader>
               <CardTitle>Contact Support</CardTitle>
               <CardDescription>
-                Can&#39;t find what you&#39;re looking for? Send us a message and we'll get back to you.
+                Can't find what you're looking for? Send us a message and we'll get back to you.
               </CardDescription>
             </CardHeader>
             <CardContent>

@@ -186,8 +186,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 dark:text-gray-300">
-                &#34;NextHire helped me land my dream job at Google. The platform made it easy to find and apply for
-                positions that matched my skills and interests.&#34;
+                "NextHire helped me land my dream job at Google. The platform made it easy to find and apply for
+                positions that matched my skills and interests."
               </p>
             </motion.div>
 
@@ -204,8 +204,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 dark:text-gray-300">
-                &#34;The career guidance and resume tips from NextHire were invaluable. I received multiple job offers and
-                found the perfect position at Amazon.&#34;
+                "The career guidance and resume tips from NextHire were invaluable. I received multiple job offers and
+                found the perfect position at Amazon."
               </p>
             </motion.div>
 
@@ -222,8 +222,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 dark:text-gray-300">
-                &#34;As a design student, I was worried about finding the right job. NextHire connected me with companies
-                looking for my exact skills, and now I&#39;m thriving at Adobe.&#34;
+                "As a design student, I was worried about finding the right job. NextHire connected me with companies
+                looking for my exact skills, and now I'm thriving at Adobe."
               </p>
             </motion.div>
           </motion.div>

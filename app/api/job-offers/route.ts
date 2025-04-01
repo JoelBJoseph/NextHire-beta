@@ -8,6 +8,7 @@ export async function GET(req: Request) {
     const query = searchParams.get("query") || ""
     const location = searchParams.get("location") || ""
     const type = searchParams.get("type") || ""
+    const status = searchParams.get("status") || ""
 
     const jobOffers = await prisma.jobOffer.findMany({
       where: {
@@ -40,12 +41,24 @@ export async function GET(req: Request) {
               },
             }
           : {}),
+        ...(status
+          ? {
+              status: {
+                equals: status,
+              },
+            }
+          : {}),
       },
       include: {
         organization: {
           select: {
             name: true,
             logo: true,
+          },
+        },
+        applications: {
+          select: {
+            id: true,
           },
         },
       },
@@ -69,7 +82,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if user is an organization
+    // Check if user is an organization or admin
     const user = await prisma.user.findUnique({
       where: {
         id: session.user.id,
@@ -79,12 +92,12 @@ export async function POST(req: Request) {
       },
     })
 
-    if (!user || user.role !== "ORGANIZATION" || !user.organization) {
+    if (!user || (user.role !== "ORGANIZATION" && user.role !== "ADMIN") || !user.organization) {
       return NextResponse.json({ message: "Only organizations can create job offers" }, { status: 403 })
     }
 
     const body = await req.json()
-    const { title, description, location, salary, type, experience, skills } = body
+    const { title, description, location, salary, type, experience, skills, status } = body
 
     if (!title || !description || !location) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 })
@@ -95,10 +108,11 @@ export async function POST(req: Request) {
         title,
         description,
         location,
-        salary,
+        salary: salary || null,
         type: type || "Full-time",
-        experience,
-        skills,
+        experience: experience || null,
+        skills: skills || [],
+        status: status || "active",
         organization: {
           connect: {
             id: user.organization.id,

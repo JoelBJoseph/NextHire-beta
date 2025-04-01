@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "@/components/ui/use-toast"
 import { submitContactForm } from "@/lib/api"
 import { LoadingSpinner } from "@/components/loading-spinner"
 
@@ -84,7 +84,7 @@ export function ContactForm() {
         </div>
         <h3 className="text-xl font-semibold mb-2">Message Sent!</h3>
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          Thank you for contacting us. We&#39;ll get back to you as soon as possible.
+          Thank you for contacting us. We'll get back to you as soon as possible.
         </p>
         <Button onClick={() => setIsSuccess(false)}>Send Another Message</Button>
       </div>

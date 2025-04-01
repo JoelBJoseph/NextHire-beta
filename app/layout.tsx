@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer"
 import { Toaster } from "@/components/ui/toaster"
 import type * as React from "react"
 
-import "./globals.css"
+import "@/styles/globals.css"
 
 // Optimize font loading by specifying only the subsets we need
 const inter = Inter({
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/favicon-32x32.png",
+        url: "/favicon-23x32.png",
         sizes: "32x32",
         type: "image/png",
       },
@@ -32,6 +32,7 @@ export const metadata: Metadata = {
       },
     ],
   },
+    generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -57,3 +58,6 @@ export default function RootLayout({
   )
 }
 
+
+
+import './globals.css'

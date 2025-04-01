@@ -108,13 +108,13 @@ export async function GET(req: Request) {
 
       // Query conditions for organization or admin
       const whereCondition =
-          user.role === "ORGANIZATION" && organizationId
-              ? {
-                jobOffer: {
-                  organizationId,
-                },
-              }
-              : {}
+        user.role === "ORGANIZATION" && organizationId
+          ? {
+              jobOffer: {
+                organizationId,
+              },
+            }
+          : {}
 
       const jobWhereCondition = user.role === "ORGANIZATION" && organizationId ? { organizationId } : {}
 

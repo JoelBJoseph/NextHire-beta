@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -11,72 +11,74 @@ import { motion } from "framer-motion"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { getApplications } from "@/lib/api"
 import { useRouter } from "next/navigation"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ResumeViewer } from "@/components/resume-viewer"
 
 interface Application {
-  id: number | string
-  jobTitle: string
-  company: string
-  appliedDate: string
+  id: string
+  jobOffer: {
+    id: string
+    title: string
+    organization: {
+      name: string
+    }
+  }
   status: string
-}
-
-interface Notification {
-  id: number | string
-  message: string
-  time: string
-}
-
-interface Event {
-  id: number | string
-  title: string
-  date: string
-  time: string
+  appliedDate: string
+  resumeUrl?: string
+  coverLetter?: string
 }
 
 export default function StudentDashboard() {
   const router = useRouter()
   const [applications, setApplications] = useState<Application[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null)
 
+  // Fetch applications only once on component mount
   useEffect(() => {
-    async function fetchDashboardData() {
+    let isMounted = true
+
+    async function fetchApplications() {
       try {
         setIsLoading(true)
+        const data = await getApplications()
 
-        // Fetch applications
-        const applicationsData = await getApplications()
-
-        // Format applications for display
-        const formattedApplications = applicationsData.map((app: any) => ({
-          id: app.id,
-          jobTitle: app.jobOffer.title,
-          company: app.jobOffer.organization.name,
-          appliedDate: new Date(app.appliedDate).toLocaleDateString(),
-          status: app.status.toLowerCase(),
-        }))
-
-        setApplications(formattedApplications)
-
-        // In a real app, we would fetch notifications and events from the API
-        // For now, we'll use empty arrays
-        setNotifications([])
-        setUpcomingEvents([])
+        if (isMounted) {
+          setApplications(data)
+        }
       } catch (err) {
-        console.error("Error fetching dashboard data:", err)
-        setError("Failed to load your applications. Please try again.")
+        console.error("Error fetching applications:", err)
+        if (isMounted) {
+          setError("Failed to load your applications. Please try again.")
+        }
       } finally {
-        setIsLoading(false)
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
 
-    fetchDashboardData()
+    fetchApplications()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  // Memoize derived data to prevent unnecessary calculations
+  const stats = useMemo(() => {
+    const selected = applications.filter((app) => app.status.toLowerCase() === "selected").length
+    const pending = applications.filter((app) => app.status.toLowerCase() === "pending").length
+    const rejected = applications.filter((app) => app.status.toLowerCase() === "rejected").length
+
+    return { total: applications.length, selected, pending, rejected }
+  }, [applications])
+
+  // Memoize status badge renderer
+  const getStatusBadge = useCallback((status: string) => {
+    switch (status.toLowerCase()) {
       case "pending":
         return (
           <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 flex items-center gap-1">
@@ -101,12 +103,11 @@ export default function StudentDashboard() {
       default:
         return null
     }
-  }
+  }, [])
 
-  const handleViewApplication = (id: number | string) => {
-    // In a real app, this would navigate to the application details page
-    router.push(`/applications/${id}`)
-  }
+  const handleViewApplication = useCallback((application: Application) => {
+    setSelectedApplication(application)
+  }, [])
 
   if (isLoading) {
     return (
@@ -153,7 +154,7 @@ export default function StudentDashboard() {
                   <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">{applications.length}</div>
+                  <div className="text-3xl font-bold">{stats.total}</div>
                   <p className="text-xs text-muted-foreground mt-1">Applications submitted</p>
                 </CardContent>
               </Card>
@@ -169,9 +170,7 @@ export default function StudentDashboard() {
                   <CardTitle className="text-sm font-medium">Selected</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">
-                    {applications.filter((app) => app.status === "selected").length}
-                  </div>
+                  <div className="text-3xl font-bold">{stats.selected}</div>
                   <p className="text-xs text-muted-foreground mt-1">Applications approved</p>
                 </CardContent>
               </Card>
@@ -187,9 +186,7 @@ export default function StudentDashboard() {
                   <CardTitle className="text-sm font-medium">Pending</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">
-                    {applications.filter((app) => app.status === "pending").length}
-                  </div>
+                  <div className="text-3xl font-bold">{stats.pending}</div>
                   <p className="text-xs text-muted-foreground mt-1">Awaiting response</p>
                 </CardContent>
               </Card>
@@ -229,25 +226,74 @@ export default function StudentDashboard() {
                         {applications.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                              You haven&#39;t applied to any jobs yet
+                              You haven't applied to any jobs yet
                             </TableCell>
                           </TableRow>
                         ) : (
                           applications.map((application) => (
                             <TableRow key={application.id} className="hover:bg-muted/50">
-                              <TableCell className="font-medium">{application.jobTitle}</TableCell>
-                              <TableCell>{application.company}</TableCell>
-                              <TableCell>{application.appliedDate}</TableCell>
+                              <TableCell className="font-medium">{application.jobOffer.title}</TableCell>
+                              <TableCell>{application.jobOffer.organization.name}</TableCell>
+                              <TableCell>{new Date(application.appliedDate).toLocaleDateString()}</TableCell>
                               <TableCell>{getStatusBadge(application.status)}</TableCell>
                               <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleViewApplication(application.id)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleViewApplication(application)}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="sm:max-w-[600px]">
+                                    <DialogHeader>
+                                      <DialogTitle>Application Details</DialogTitle>
+                                    </DialogHeader>
+                                    {selectedApplication && (
+                                      <div className="space-y-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                          <div className="text-sm font-medium">Job:</div>
+                                          <div className="col-span-3">
+                                            <div className="font-medium">{selectedApplication.jobOffer.title}</div>
+                                            <div className="text-sm text-muted-foreground">
+                                              {selectedApplication.jobOffer.organization.name}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                          <div className="text-sm font-medium">Applied Date:</div>
+                                          <div className="col-span-3">
+                                            {new Date(selectedApplication.appliedDate).toLocaleDateString()}
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                          <div className="text-sm font-medium">Status:</div>
+                                          <div className="col-span-3">{getStatusBadge(selectedApplication.status)}</div>
+                                        </div>
+                                        {selectedApplication.resumeUrl && (
+                                          <div className="grid grid-cols-4 items-center gap-4">
+                                            <div className="text-sm font-medium">Resume:</div>
+                                            <div className="col-span-3">
+                                              <ResumeViewer
+                                                resumeUrl={selectedApplication.resumeUrl}
+                                                studentName="Your Resume"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                        {selectedApplication.coverLetter && (
+                                          <div className="grid grid-cols-4 items-start gap-4">
+                                            <div className="text-sm font-medium">Cover Letter:</div>
+                                            <div className="col-span-3 text-sm">{selectedApplication.coverLetter}</div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </DialogContent>
+                                </Dialog>
                               </TableCell>
                             </TableRow>
                           ))
@@ -268,18 +314,7 @@ export default function StudentDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {notifications.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">No new notifications</div>
-                  ) : (
-                    <div className="space-y-4">
-                      {notifications.map((notification) => (
-                        <div key={notification.id} className="border-b pb-4 last:border-0 last:pb-0">
-                          <p className="text-sm">{notification.message}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{notification.time}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-center py-6 text-muted-foreground">No new notifications</div>
                 </CardContent>
               </Card>
 
@@ -291,25 +326,7 @@ export default function StudentDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {upcomingEvents.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground">No upcoming events</div>
-                  ) : (
-                    <div className="space-y-4">
-                      {upcomingEvents.map((event) => (
-                        <div key={event.id} className="border-b pb-4 last:border-0 last:pb-0">
-                          <p className="font-medium">{event.title}</p>
-                          <div className="flex items-center text-sm text-muted-foreground mt-1">
-                            <Calendar className="mr-2 h-4 w-4" />
-                            {event.date}
-                          </div>
-                          <div className="flex items-center text-sm text-muted-foreground mt-1">
-                            <Clock className="mr-2 h-4 w-4" />
-                            {event.time}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-center py-6 text-muted-foreground">No upcoming events</div>
                 </CardContent>
               </Card>
             </div>

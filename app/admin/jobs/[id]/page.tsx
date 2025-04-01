@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useParams, useRouter } from "next/navigation"
-import { Edit, Trash2, MapPin, Building, DollarSign, Clock, Briefcase, Calendar } from "lucide-react"
+import { Edit, Trash2, MapPin, Building, DollarSign, Clock, Briefcase, Calendar, Users } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -14,9 +14,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "@/components/ui/use-toast"
 import { LoadingSpinner } from "@/components/loading-spinner"
-import { getJobOfferById, deleteJobOffer } from "@/lib/api"
+import { getJobOfferById, deleteJobOffer, getApplications, updateApplication } from "@/lib/api"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ResumeViewer } from "@/components/resume-viewer"
 
 interface Job {
   id: string
@@ -33,13 +36,31 @@ interface Job {
   status: string
 }
 
+interface Application {
+  id: string
+  user: {
+    id: string
+    name: string
+    email: string
+    profile?: {
+      resumeUrl?: string
+      address?: string
+    }
+  }
+  status: string
+  appliedDate: string
+}
+
 export default function JobDetailsPage() {
   const params = useParams()
   const router = useRouter()
   const jobId = params.id as string
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [job, setJob] = useState<Job | null>(null)
+  const [applications, setApplications] = useState<Application[]>([])
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,7 +73,21 @@ export default function JobDetailsPage() {
           setError("Job not found")
           return
         }
-        setJob(data)
+
+        setJob({
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          company: data.organization.name,
+          location: data.location,
+          salary: data.salary || "Not specified",
+          type: data.type,
+          experience: data.experience || "Not specified",
+          skills: data.skills || [],
+          applications: data.applications?.length || 0,
+          createdAt: new Date(data.createdAt).toLocaleDateString(),
+          status: data.status,
+        })
       } catch (err) {
         setError("Failed to load job details. Please try again later.")
         console.error("Error fetching job details:", err)
@@ -61,7 +96,22 @@ export default function JobDetailsPage() {
       }
     }
 
+    async function fetchApplications() {
+      try {
+        setIsLoadingApplications(true)
+        const allApplications = await getApplications()
+        // Filter applications for this job
+        const jobApplications = allApplications.filter((app: any) => app.jobOffer.id === jobId)
+        setApplications(jobApplications)
+      } catch (err) {
+        console.error("Error fetching applications:", err)
+      } finally {
+        setIsLoadingApplications(false)
+      }
+    }
+
     fetchJobDetails()
+    fetchApplications()
   }, [jobId])
 
   const handleDeleteJob = async () => {
@@ -85,14 +135,58 @@ export default function JobDetailsPage() {
     }
   }
 
+  const handleUpdateApplicationStatus = async (applicationId: string, newStatus: string) => {
+    try {
+      setIsUpdatingStatus(true)
+      await updateApplication(applicationId, { status: newStatus.toUpperCase() })
+
+      // Update local state
+      setApplications(
+        applications.map((app) => (app.id === applicationId ? { ...app, status: newStatus.toUpperCase() } : app)),
+      )
+
+      toast({
+        title: "Status updated",
+        description: `Application status has been updated to ${newStatus}.`,
+      })
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to update application status. Please try again.",
+        variant: "destructive",
+      })
+      console.error("Error updating application status:", err)
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case "active":
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Active</Badge>
       case "closed":
         return (
           <Badge variant="secondary" className="bg-gray-100 text-gray-800 hover:bg-gray-200">
             Closed
+          </Badge>
+        )
+      case "pending":
+        return (
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            Pending
+          </Badge>
+        )
+      case "selected":
+        return (
+          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+            Selected
+          </Badge>
+        )
+      case "rejected":
+        return (
+          <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+            Rejected
           </Badge>
         )
       default:
@@ -240,16 +334,88 @@ export default function JobDetailsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Applications</CardTitle>
-              <CardDescription>{job.applications} candidates have applied to this job</CardDescription>
+              <CardDescription>{applications.length} candidates have applied to this job</CardDescription>
             </CardHeader>
             <CardContent>
               <Button className="w-full" onClick={() => router.push("/admin/applications")}>
-                View Applications
+                <Users className="mr-2 h-4 w-4" />
+                View All Applications
               </Button>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Applications Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Applications for this Job</CardTitle>
+          <CardDescription>Review and manage applications for this position</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingApplications ? (
+            <div className="flex justify-center py-8">
+              <LoadingSpinner size="md" className="text-blue-600" />
+            </div>
+          ) : applications.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No applications have been submitted for this job yet.
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Applicant</TableHead>
+                    <TableHead>Applied Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Resume</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {applications.map((application) => (
+                    <TableRow key={application.id}>
+                      <TableCell>
+                        <div className="font-medium">{application.user.name}</div>
+                        <div className="text-sm text-muted-foreground">{application.user.email}</div>
+                      </TableCell>
+                      <TableCell>{new Date(application.appliedDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{getStatusBadge(application.status)}</TableCell>
+                      <TableCell>
+                        {application.user.profile?.resumeUrl ? (
+                          <ResumeViewer
+                            resumeUrl={application.user.profile.resumeUrl}
+                            studentName={application.user.name}
+                          />
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No resume</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={application.status.toLowerCase()}
+                          onValueChange={(value) => handleUpdateApplicationStatus(application.id, value)}
+                          disabled={isUpdatingStatus}
+                        >
+                          <SelectTrigger className="w-[130px]">
+                            <SelectValue placeholder="Update Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="selected">Select</SelectItem>
+                            <SelectItem value="rejected">Reject</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

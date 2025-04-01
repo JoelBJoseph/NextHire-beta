@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { toast } from "@/hooks/use-toast"
+import { toast } from "@/components/ui/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 
 const profileFormSchema = z.object({
@@ -272,7 +272,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Organization</CardTitle>
-              <CardDescription>Manage your organization&#39;s information and settings</CardDescription>
+              <CardDescription>Manage your organization's information and settings</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex flex-col md:flex-row gap-6 items-start">

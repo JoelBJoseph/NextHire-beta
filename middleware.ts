@@ -30,12 +30,22 @@ export async function middleware(req: NextRequest) {
 
   // Check if the user is trying to access a public route while being authenticated
   if (isPublicRoute && isAuthenticated) {
+    // If user is admin or organization, redirect to admin panel
+    if (token.role === "ADMIN" || token.role === "ORGANIZATION") {
+      return NextResponse.redirect(new URL("/admin/home", req.url))
+    }
+    // Otherwise redirect to dashboard
     return NextResponse.redirect(new URL("/dashboard", req.url))
   }
 
-  // Check if the user is trying to access an admin route without being an admin
+  // Check if the user is trying to access an admin route without being an admin or organization
   if (isAdminRoute && isAuthenticated && token.role !== "ADMIN" && token.role !== "ORGANIZATION") {
     return NextResponse.redirect(new URL("/dashboard", req.url))
+  }
+
+  // Redirect admins and organizations to admin panel when trying to access student dashboard
+  if (pathname === "/dashboard" && isAuthenticated && (token.role === "ADMIN" || token.role === "ORGANIZATION")) {
+    return NextResponse.redirect(new URL("/admin/home", req.url))
   }
 
   return NextResponse.next()
